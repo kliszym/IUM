@@ -12,6 +12,9 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import pg.ium.warehouse2.R;
 import pg.ium.warehouse2.data.OutPutter;
 import pg.ium.warehouse2.network.Connection;
@@ -19,28 +22,34 @@ import pg.ium.warehouse2.ui.main.MainActivity;
 
 public class ProductChangeActivity extends AppCompatActivity {
 
-    private String value;
     private Operation operation;
-    private int product_id;
+    private ProductInfo product;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Intent intent = getIntent();
-        product_id = intent.getIntExtra("id", 1);
-        operation = (Operation)intent.getSerializableExtra("operation");
-        value = intent.getStringExtra("value");
+        try {
+            product = new ProductInfo(getApplicationContext(), new JSONObject(intent.getStringExtra("product")), ProductInfo.ProductState.ADDED);
+            if(product.getProduct_state() == ProductInfo.ProductState.ADDED)
+                operation = Operation.ADD;
+            else
+                operation = Operation.SUBTRACT;
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
         setContentView(R.layout.activity_product_change);
 
         TextView tv;
         tv = findViewById(R.id.tv_value_start);
-        tv.setText(value);
+        tv.setText(product.quantity.toString());
         tv = findViewById(R.id.tv_operation);
         tv.setText(operation.toString());
         tv = findViewById(R.id.tv_value_final);
-        tv.setText(value);
+        tv.setText(product.quantity.toString());
 
         EditText et;
         et = findViewById(R.id.editTextNumberDecimal);
@@ -88,23 +97,21 @@ public class ProductChangeActivity extends AppCompatActivity {
     }
 
     public void saveSingleChange(View view) {
-        int value;
         String change_string = ((EditText)findViewById(R.id.editTextNumberDecimal)).getText().toString();
 
         if(!change_string.isEmpty()) {
-            Log.w("value:", change_string);
-            value = Integer.valueOf(change_string);
-
-            if(value < 0) {
+            int total_value = Integer.parseInt(((TextView)findViewById(R.id.tv_value_final)).getText().toString());
+            if(total_value < 0) {
                 Toast.makeText(this, "Result of operation can not be negative.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            Connection connection = new Connection(this);
-            Log.w("ID", Integer.toString(product_id));
+            product.quantity = Integer.valueOf(change_string);
+
 
             OutPutter op = new OutPutter(getApplicationContext());
-            op.write(operation, value);
+            op.write(product);
+//            Connection connection = new Connection(this);
 //            if(operation == Operation.ADD) {
 //                connection.increase(product_id, value);
 //            }

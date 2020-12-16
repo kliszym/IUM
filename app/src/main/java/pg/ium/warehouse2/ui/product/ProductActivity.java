@@ -6,11 +6,15 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import pg.ium.warehouse2.R;
 import pg.ium.warehouse2.data.OutPutter;
@@ -30,13 +34,12 @@ public class ProductActivity extends AppCompatActivity {
         Intent intent = getIntent();
         change = (Change)intent.getSerializableExtra("change");
         if(change == Change.UPDATE) {
-            product = new ProductInfo(
-                    intent.getStringExtra("id"),
-                    intent.getStringExtra("manufacturer"),
-                    intent.getStringExtra("model"),
-                    intent.getDoubleExtra("price", 0.0),
-                    intent.getIntExtra("quantity", 0)
-            );
+            try {
+                product = new ProductInfo(getApplicationContext(), new JSONObject(intent.getStringExtra("product")), ProductInfo.ProductState.UNCHANGED);
+            } catch (JSONException e) {
+                Log.w("JSON", "JSON exception");
+                e.printStackTrace();
+            }
 
             id = product.id;
 
@@ -52,7 +55,7 @@ public class ProductActivity extends AppCompatActivity {
         }
         else {
             OutPutter op = new OutPutter(getApplicationContext());
-            id = "client" + op.read_counter().toString();
+            id = "c" + op.read_counter().toString();
             Button btn;
             btn = (Button) findViewById(R.id.button_quantity_plus);
             btn.setVisibility(View.GONE);
@@ -101,9 +104,13 @@ public class ProductActivity extends AppCompatActivity {
 
     public void activateProductChangeActivity(Operation operation) {
         Intent intent = new Intent(getApplicationContext(), ProductChangeActivity.class);
-        intent.putExtra("id", product.id);
-        intent.putExtra("operation", operation);
-        intent.putExtra("value", product.quantity.toString());
+        if(operation == Operation.ADD)
+            product.markQuantityAdded();
+        else
+            product.markQuantitySubtracted();
+
+        intent.putExtra("product", product.json().toString());
+
         this.startActivity(intent);
     }
 
@@ -122,15 +129,17 @@ public class ProductActivity extends AppCompatActivity {
 
         Connection connection = new Connection(this);
         OutPutter op = new OutPutter(getApplicationContext());
-        op.write(product);
 
         if(change == Change.UPDATE) {
+            product.markChanged();
 //            connection.update(product);
         }
         else {
 //            connection.create(product);
+            product.markNew();
             op.increase_counter();
         }
+        op.write(product);
 
         onBackPressed();
     }

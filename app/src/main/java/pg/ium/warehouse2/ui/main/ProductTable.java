@@ -27,7 +27,7 @@ public class ProductTable {
 
     public TableLayout table;
     private Context context;
-    private List<ProductInfo> products = new ArrayList<>();
+    public List<ProductInfo> products = new ArrayList<>();
     private TableRow rowSelected = null;
 
     public ProductTable(Context context) {
@@ -127,12 +127,7 @@ public class ProductTable {
                     int row_number = (int) v.getTag();
                     Intent intent = new Intent(context.getApplicationContext(), ProductActivity.class);
                     intent.putExtra("change", Change.UPDATE);
-                    intent.putExtra("id", products.get(row_number).id);
-                    intent.putExtra("manufacturer", products.get(row_number).manufacturer);
-                    intent.putExtra("model", products.get(row_number).model);
-                    intent.putExtra("price", products.get(row_number).price);
-                    intent.putExtra("quantity", products.get(row_number).quantity);
-                    intent.putExtra("row number", row_number);
+                    intent.putExtra("product", products.get(row_number).json().toString());
                     context.startActivity(intent);
                 }
             }

@@ -24,6 +24,12 @@ public class ProductInfo {
     public Double price;
     public Integer quantity;
 
+    private String id_json = "obj_id";
+    private String manufacturer_json = "manufacturer";
+    private String model_json = "model";
+    private String price_json = "price";
+    private String quantity_json = "quantity";
+
     private ProductState product_state;
 
     public ProductInfo(String id, String manufacturer, String model, Double price, int quantity) {
@@ -75,26 +81,26 @@ public class ProductInfo {
         try {
             switch(product_state) {
                 case UNCHANGED:
-                    id = obj.getString("obj_id");
-                    manufacturer = obj.getString("manufacturer");
-                    model = obj.getString("model");
-                    price = obj.getDouble("price");
-                    quantity = obj.getInt("quantity");
+                    id = obj.getString(id_json);
+                    manufacturer = obj.getString(manufacturer_json);
+                    model = obj.getString(model_json);
+                    price = obj.getDouble(price_json);
+                    quantity = obj.getInt(quantity_json);
                     break;
                 case CHANGED:
                 case NEW:
-                    id = obj.getString("obj_id");
-                    manufacturer = obj.getString("manufacturer");
-                    model = obj.getString("model");
-                    price = obj.getDouble("price");
+                    id = obj.getString(id_json);
+                    manufacturer = obj.getString(manufacturer_json);
+                    model = obj.getString(model_json);
+                    price = obj.getDouble(price_json);
                     break;
                 case REMOVED:
-                    id = obj.getString("obj_id");
+                    id = obj.getString(id_json);
                     break;
                 case ADDED:
                 case SUBTRACTED:
-                    id = obj.getString("obj_id");
-                    quantity = obj.getInt("quantity");
+                    id = obj.getString(id_json);
+                    quantity = obj.getInt(quantity_json);
                     if(obj.getString("operation").equals("+"))
                         product_state = ProductState.ADDED;
                     else
@@ -111,37 +117,42 @@ public class ProductInfo {
         return product_state;
     }
     public void markRemoved() { this.product_state = ProductState.REMOVED; }
+    public void markQuantityAdded() { this.product_state = ProductState.ADDED; }
+    public void markQuantitySubtracted() { this.product_state = ProductState.SUBTRACTED; }
+    public void markUnchanged() { this.product_state = ProductState.UNCHANGED; }
+    public void markChanged() { this.product_state = ProductState.CHANGED; }
+    public void markNew() { this.product_state = ProductState.NEW; }
 
     public JSONObject json() {
         JSONObject obj = new JSONObject();
         try {
             switch(this.product_state) {
                 case UNCHANGED:
-                    obj.put("obj_id", id);
-                    obj.put("manufacturer", manufacturer);
-                    obj.put("model", model);
-                    obj.put("price", price);
-                    obj.put("quantity", quantity);
+                    obj.put(id_json, id);
+                    obj.put(manufacturer_json, manufacturer);
+                    obj.put(model_json, model);
+                    obj.put(price_json, price);
+                    obj.put(quantity_json, quantity);
                     break;
                 case CHANGED:
                 case NEW:
-                    obj.put("obj_id", id);
-                    obj.put("manufacturer", manufacturer);
-                    obj.put("model", model);
-                    obj.put("price", price);
+                    obj.put(id_json, id);
+                    obj.put(manufacturer_json, manufacturer);
+                    obj.put(model_json, model);
+                    obj.put(price_json, price);
                     break;
                 case REMOVED:
-                    obj.put("obj_id", id);
+                    obj.put(id_json, id);
                     break;
                 case ADDED:
-                    obj.put("obj_id", id);
+                    obj.put(id_json, id);
                     obj.put("operation", "+");
-                    obj.put("quantity", quantity);
+                    obj.put(quantity_json, quantity);
                     break;
                 case SUBTRACTED:
-                    obj.put("obj_id", id);
+                    obj.put(id_json, id);
                     obj.put("operation", "-");
-                    obj.put("quantity", quantity);
+                    obj.put(quantity_json, quantity);
                     break;
                 default:
                     //

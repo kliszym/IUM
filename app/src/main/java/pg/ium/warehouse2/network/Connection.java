@@ -23,6 +23,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+import pg.ium.warehouse2.data.OutPutter;
 import pg.ium.warehouse2.global.IumApplication;
 import pg.ium.warehouse2.ui.product.ProductInfo;
 import pg.ium.warehouse2.ui.login.Role;
@@ -44,11 +45,28 @@ public class Connection {
 
     RequestQueue requestQueue;
 
+    private JSONObject prepareData(List<ProductInfo> product_infos) {
+        JSONArray j_array = new JSONArray();
+        for(ProductInfo product_info : product_infos) {
+            j_array.put(product_info.json());
+        }
+
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("id", getId());
+            obj.put("products", j_array);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return obj;
+    }
+
     public Connection(Context context) {
         this.context = context;
         Cache cache = new DiskBasedCache(context.getCacheDir(), 1024 * 1024);
         Network network = new BasicNetwork(new HurlStack());
-        requestQueue = new RequestQueue(cache, network);
+        requestQueue = new RequestQueue(cache, network, 1);
         requestQueue.start();
     }
 
@@ -57,7 +75,7 @@ public class Connection {
         return app.getUser().id;
     }
 
-    public void getInfo(final ProductTable productTable) {
+    public void getInfo(final List<ProductInfo> product_infos) {
         JSONObject obj = new JSONObject();
         try {
             obj.put("id", getId());
@@ -69,12 +87,11 @@ public class Connection {
 
                     @Override
                     public void onResponse(JSONObject response) {
-                        List<ProductInfo> products = new ArrayList<>();
                         try {
                             JSONArray result = (JSONArray)response.get("result");
                             for(int i = 0; i < result.length(); i++) {
                                 JSONObject product = (JSONObject) result.get(i);
-                                products.add(new ProductInfo(
+                                product_infos.add(new ProductInfo(
                                         product.getString("obj_id"),
                                         product.getString("manufacturer"),
                                         product.getString("model"),
@@ -82,7 +99,14 @@ public class Connection {
                                         product.getInt("quantity")
                                 ));
                             }
-                            productTable.update(products);
+
+                            OutPutter op = new OutPutter(context);
+                            op.flush_base();
+                            for(ProductInfo product : product_infos) {
+                                op.write(product);
+                            }
+                            ((MainActivity)context).update();
+
                         } catch (JSONException e) {
                             Toast.makeText(context, "Unexpected error", Toast.LENGTH_SHORT).show();
                         }
@@ -98,13 +122,8 @@ public class Connection {
         requestQueue.add(jsonRequest);
     }
 
-    public void update(ProductInfo product) {
-        JSONObject obj = product.json();
-        try {
-            obj.put("id", getId());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    public void update(List<ProductInfo> product_infos) {
+        JSONObject obj = prepareData(product_infos);
         JsonObjectRequest jsonRequest = new JsonObjectRequest
                 (Request.Method.POST, update_address, obj, new Response.Listener<JSONObject>() {
 
@@ -124,13 +143,8 @@ public class Connection {
         requestQueue.add(jsonRequest);
     }
 
-    public void create(ProductInfo product) {
-        JSONObject obj = product.json();
-        try {
-            obj.put("id", getId());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    public void create(List<ProductInfo> product_infos) {
+        JSONObject obj = prepareData(product_infos);
         JsonObjectRequest jsonRequest = new JsonObjectRequest
                 (Request.Method.POST, create_address, obj, new Response.Listener<JSONObject>() {
 
@@ -150,14 +164,8 @@ public class Connection {
         requestQueue.add(jsonRequest);
     }
 
-    public void remove(String id) {
-        JSONObject obj = new JSONObject();
-        try {
-            obj.put("id", getId());
-            obj.put("obj_id", id);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    public void remove(List<ProductInfo> product_infos) {
+        JSONObject obj = prepareData(product_infos);
         JsonObjectRequest jsonRequest = new JsonObjectRequest
                 (Request.Method.POST, remove_address, obj, new Response.Listener<JSONObject>() {
 
@@ -177,15 +185,8 @@ public class Connection {
         requestQueue.add(jsonRequest);
     }
 
-    public void increase(int id, double value) {
-        JSONObject obj = new JSONObject();
-        try {
-            obj.put("id", getId());
-            obj.put("obj_id", id);
-            obj.put("value", value);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    public void increase(List<ProductInfo> product_infos) {
+        JSONObject obj = prepareData(product_infos);
         JsonObjectRequest jsonRequest = new JsonObjectRequest
                 (Request.Method.POST, increase_address, obj, new Response.Listener<JSONObject>() {
 
@@ -205,15 +206,8 @@ public class Connection {
         requestQueue.add(jsonRequest);
     }
 
-    public void decrease(int id, double value) {
-        JSONObject obj = new JSONObject();
-        try {
-            obj.put("id", getId());
-            obj.put("obj_id", id);
-            obj.put("value", value);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    public void decrease(List<ProductInfo> product_infos) {
+        JSONObject obj = prepareData(product_infos);
         JsonObjectRequest jsonRequest = new JsonObjectRequest
                 (Request.Method.POST, decrease_address, obj, new Response.Listener<JSONObject>() {
 

@@ -3,6 +3,9 @@ package pg.ium.warehouse2.data;
 import android.content.Context;
 import android.widget.Toast;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -12,6 +15,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import pg.ium.warehouse2.ui.product.ProductInfo;
 
@@ -19,30 +24,50 @@ public class OutPutter {
 
     private Context context;
 
+    private String BASE = "base";
     private String CREATION = "creation";
     private String COUNTER = "counter";
     private String REMOVAL = "removal";
-    private String UPDATE_PRODUCT = "update_product";
-    private String UPDATE_QUANTITY = "update_quantity";
+    private String UPDATE = "update";
+    private String INCREASE = "increase";
+    private String DECREASE = "decrease";
 
     public OutPutter(Context context) {
         this.context = context;
     }
 
-//    private read(String filename) {
-//
-//    }
+    private List<ProductInfo> read_objects(String filename, ProductInfo.ProductState product_state) {
+        List<ProductInfo> product_infos = new ArrayList<>();
+        File file = new File(context.getFilesDir(), filename);
+        if(file.exists()) {
+            try {
+                InputStream is = context.openFileInput(filename);
+                InputStreamReader isr = new InputStreamReader(is);
+                BufferedReader br = new BufferedReader(isr);
+                while (true) {
+                    String s = br.readLine();
+                    if (s == null)
+                        break;
+                    else
+                        s = s.trim();
+                    product_infos.add(new ProductInfo(context, new JSONObject(s), product_state));
+                }
+                br.close();
+            } catch (IOException | JSONException io_e) {
+                Toast.makeText(context, "File Storage Error (" + filename + ").", Toast.LENGTH_SHORT).show();
+            }
+        }
+        return product_infos;
+    }
 
     private void write(String filename, String content) {
         try {
-            OutputStream os = context.openFileOutput(CREATION, Context.MODE_APPEND);
+            OutputStream os = context.openFileOutput(filename, Context.MODE_APPEND);
             OutputStreamWriter osw = new OutputStreamWriter(os);
             BufferedWriter bw = new BufferedWriter(osw);
             bw.write(content);
             bw.newLine();
             bw.close();
-        } catch (FileNotFoundException e) {
-            Toast.makeText(context, "File Existence Error (" + filename + ").", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             Toast.makeText(context, "File Storage Error (" + filename +").", Toast.LENGTH_SHORT).show();
         }
@@ -64,17 +89,13 @@ public class OutPutter {
                 String s = br.readLine().trim();
                 created_products = Integer.parseInt(s);
                 br.close();
-            } catch (FileNotFoundException e1) {
-                try {
-                    OutputStream os = context.openFileOutput(COUNTER, Context.MODE_PRIVATE);
-                    OutputStreamWriter osw = new OutputStreamWriter(os);
-                    BufferedWriter bw = new BufferedWriter(osw);
-                    created_products = 0;
-                    bw.write(Integer.toString(created_products));
-                    bw.close();
-                } catch (FileNotFoundException e2) {
-                    Toast.makeText(context, "File Existence Error (Counter).", Toast.LENGTH_SHORT).show();
-                }
+            } catch (FileNotFoundException e) {
+                OutputStream os = context.openFileOutput(COUNTER, Context.MODE_PRIVATE);
+                OutputStreamWriter osw = new OutputStreamWriter(os);
+                BufferedWriter bw = new BufferedWriter(osw);
+                created_products = 0;
+                bw.write(Integer.toString(created_products));
+                bw.close();
             }
         }
         catch (IOException io_e) {
@@ -90,8 +111,6 @@ public class OutPutter {
             BufferedWriter bw = new BufferedWriter(osw);
             bw.write(created_products.toString());
             bw.close();
-        } catch (FileNotFoundException e) {
-            Toast.makeText(context, "File Existence Error (Counter).", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             Toast.makeText(context, "File Storage Error (Counter).", Toast.LENGTH_SHORT).show();
         }
@@ -103,17 +122,39 @@ public class OutPutter {
         write_counter(counter);
     }
 
-// CREATION
+    public List<ProductInfo> read_base() {
+        return read_objects(BASE, ProductInfo.ProductState.UNCHANGED);
+    }
+
+    public List<ProductInfo> read_creation() {
+        return read_objects(CREATION, ProductInfo.ProductState.NEW);
+    }
+
+    public List<ProductInfo> read_removal() {
+        return read_objects(REMOVAL, ProductInfo.ProductState.REMOVED);
+    }
+
+    public List<ProductInfo> read_update() {
+        return read_objects(UPDATE, ProductInfo.ProductState.CHANGED);
+    }
+
+    public List<ProductInfo> read_increase() {
+        return read_objects(INCREASE, ProductInfo.ProductState.ADDED);
+    }
+
+    public List<ProductInfo> read_decrease() {
+        return read_objects(DECREASE, ProductInfo.ProductState.SUBTRACTED);
+    }
 
     public void write(ProductInfo product) {
         String content = product.json().toString();
 
         switch(product.getProduct_state()) {
             case UNCHANGED:
-                //TODO:
+                write(BASE, content);
                 break;
             case CHANGED:
-                write(UPDATE_PRODUCT, content);
+                write(UPDATE, content);
                 break;
             case NEW:
                 write(CREATION, content);
@@ -122,19 +163,26 @@ public class OutPutter {
                 write(REMOVAL, content);
                 break;
             case SUBTRACTED:
+                write(DECREASE, content);
+                break;
             case ADDED:
-                write(UPDATE_QUANTITY, content);
+                write(INCREASE, content);
                 break;
         }
     }
 
     // FLUSH
-    public void flush_all() {
+    public void flush_all_but_base() {
         flush_counter();
         flush_creation();
         flush_removal();
-        flush_update_product();
-        flush_update_quantity();
+        flush_UPDATE();
+        flush_increase();
+        flush_decrease();
+    }
+
+    public void flush_base() {
+        flush(BASE);
     }
 
     public void flush_counter() {
@@ -149,11 +197,16 @@ public class OutPutter {
         flush(REMOVAL);
     }
 
-    public void flush_update_product() {
-        flush(UPDATE_PRODUCT);
+    public void flush_UPDATE() {
+        flush(UPDATE);
     }
 
-    public void flush_update_quantity() {
-        flush(UPDATE_QUANTITY);
+    public void flush_increase() {
+        flush(INCREASE);
     }
+
+    public void flush_decrease() {
+        flush(DECREASE);
+    }
+
 }
