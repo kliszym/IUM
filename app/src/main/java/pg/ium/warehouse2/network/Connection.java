@@ -21,14 +21,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import pg.ium.warehouse2.data.OutPutter;
 import pg.ium.warehouse2.global.IumApplication;
 import pg.ium.warehouse2.ui.product.ProductInfo;
 import pg.ium.warehouse2.ui.login.Role;
 import pg.ium.warehouse2.ui.main.MainActivity;
-import pg.ium.warehouse2.ui.main.ProductTable;
 
 public class Connection {
     private String address = "http://10.0.2.2:8080";
@@ -45,6 +46,14 @@ public class Connection {
 
     RequestQueue requestQueue;
 
+    public Connection(Context context) {
+        this.context = context;
+        Cache cache = new DiskBasedCache(context.getCacheDir(), 1024 * 1024);
+        Network network = new BasicNetwork(new HurlStack());
+        requestQueue = new RequestQueue(cache, network, 1);
+        requestQueue.start();
+        }
+
     private JSONObject prepareData(List<ProductInfo> product_infos) {
         JSONArray j_array = new JSONArray();
         for(ProductInfo product_info : product_infos) {
@@ -60,14 +69,6 @@ public class Connection {
         }
 
         return obj;
-    }
-
-    public Connection(Context context) {
-        this.context = context;
-        Cache cache = new DiskBasedCache(context.getCacheDir(), 1024 * 1024);
-        Network network = new BasicNetwork(new HurlStack());
-        requestQueue = new RequestQueue(cache, network, 1);
-        requestQueue.start();
     }
 
     private String getId() {
@@ -143,18 +144,10 @@ public class Connection {
         requestQueue.add(jsonRequest);
     }
 
-    public void create(List<ProductInfo> product_infos) {
+    public void create(List<ProductInfo> product_infos, Response.Listener<JSONObject> listener) {
         JSONObject obj = prepareData(product_infos);
         JsonObjectRequest jsonRequest = new JsonObjectRequest
-                (Request.Method.POST, create_address, obj, new Response.Listener<JSONObject>() {
-
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        IumApplication app = (IumApplication)context.getApplicationContext();
-                        ((MainActivity)app.main_context).update();
-                    }
-                }, new Response.ErrorListener() {
-
+                (Request.Method.POST, create_address, obj, listener, new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         error.printStackTrace();

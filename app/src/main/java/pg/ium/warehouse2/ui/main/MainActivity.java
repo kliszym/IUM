@@ -1,19 +1,25 @@
 package pg.ium.warehouse2.ui.main;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Lifecycle;
-import androidx.lifecycle.OnLifecycleEvent;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.content.Intent;
-import android.graphics.Paint;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import com.android.volley.Response;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import pg.ium.warehouse2.R;
 import pg.ium.warehouse2.data.Jointer;
@@ -58,19 +64,57 @@ public class MainActivity extends AppCompatActivity {
         update();
     }
 
+    private List<ProductInfo> check_id(List<ProductInfo> products, Map<String, String> new_ids) {
+        for(ProductInfo product : products) {
+            if (product.id.startsWith("c")) {
+                for (Map.Entry<String, String> entry : new_ids.entrySet()) {
+                    if (entry.getKey().equals(product.id)) {
+                        product.id = entry.getValue();
+                    }
+                }
+            }
+        }
+        return  products;
+    }
+
     public void synchronize() {
-        OutPutter op = new OutPutter(this);
-        Connection connection = new Connection(this);
-        connection.create(op.read_creation());
-        connection.update(op.read_update());
-        connection.increase(op.read_increase());
-        connection.decrease(op.read_decrease());
-        connection.remove(op.read_removal());
+        final OutPutter op = new OutPutter(this);
+        final Connection connection = new Connection(this);
 
-        op.flush_all_but_base();
+        Response.Listener<JSONObject> response_listener =
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        try {
+                            Log.w("Response:", response.getString("response"));
+                            Map<String, String> new_ids = new HashMap<>();
+                            JSONArray j_array = (JSONArray)response.get("result");
+                            for(int i = 0; i < j_array.length(); i++) {
+                                JSONObject obj = (JSONObject)j_array.get(i);
+                                String client_id = obj.getString("c_id");
+                                String server_id = obj.getString("s_id");
+                                new_ids.put(client_id, server_id);
+                            }
+                            List<ProductInfo> removed = check_id(op.read_removal(), new_ids);
+                            List<ProductInfo> updated = check_id(op.read_update(), new_ids);
+                            List<ProductInfo> increased = check_id(op.read_increase(), new_ids);
+                            List<ProductInfo> decreased = check_id(op.read_decrease(), new_ids);
+                            connection.update(updated);
+                            connection.increase(increased);
+                            connection.decrease(decreased);
+                            connection.remove(removed);
 
-        List<ProductInfo> product_infos = new ArrayList<>();
-        connection.getInfo(product_infos);
+                            op.flush_all_but_base();
+
+                            List<ProductInfo> product_infos = new ArrayList<>();
+                            connection.getInfo(product_infos);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                        update();
+                    }
+                };
+        connection.create(op.read_creation(), response_listener);
     }
 
     public void update() {
@@ -110,6 +154,7 @@ public class MainActivity extends AppCompatActivity {
 //            connection.remove(id);
             OutPutter op = new OutPutter(this);
             op.write(product);
+            update();
 //            Toast.makeText(getApplicationContext(), created, Toast.LENGTH_SHORT).show();
         }
     }

@@ -7,9 +7,8 @@ import java.util.List;
 import pg.ium.warehouse2.ui.product.ProductInfo;
 
 public class Jointer {
-    public Jointer() {
 
-    }
+    public Jointer() {}
 
     public void join(List<ProductInfo> base, List<ProductInfo> editor) {
         for(ProductInfo pi : editor) {
